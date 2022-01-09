@@ -1,8 +1,10 @@
-// Array of file extension which you would like to extract to Drive
 import Folder = GoogleAppsScript.Drive.Folder;
 import GmailLabel = GoogleAppsScript.Gmail.GmailLabel;
 import GDate = GoogleAppsScript.Base.Date;
 
+// NOTE: As a part of App Script syntax the `_` is appended to hide internal functions.
+
+// Array of file extension which you would like to extract to Drive
 const fileTypesToExtract = ['pdf'];
 // Name of the parent folder in Google Drive in which files will be put
 const parentFolderID = '1k6pAq98m1D4rIILkGnzpa1tk_O0uaXqQ';
@@ -21,7 +23,6 @@ const recipientEmail = "szostok.mateusz@gmail.com"
 function DumpFilesToDrive() {
 	let query = `NOT label:@indrive AND after:${after} AND to:${recipientEmail}`;
 	query += hasAllLabels.map((label) => ` AND label:${label}`)
-	query += fileTypesToExtract.map((ext) => ` OR filename:${ext}`)
 
 	Logger.log(query)
 	const threads = GmailApp.search(query);
@@ -36,7 +37,7 @@ function DumpFilesToDrive() {
 			const subFolder = createFolder_(parentFolderID, subFolderName)
 
 			attachments.forEach((attachment) => {
-				const saveFileName = normalizeFuelInvoiceName_(attachment.getName(), date)
+				const saveFileName = normalizeNameIfNeeded_(attachment.getName(), date)
 				Logger.log('Saving file: %s to %s', saveFileName, subFolderName)
 				if (!hasWantedAttachemed_(attachment)) return;
 
@@ -51,16 +52,29 @@ function DumpFilesToDrive() {
 
 }
 
+function normalizeNameIfNeeded_(fileName: string, date: GDate): string {
+	switch (true) {
+		case fileName.includes('Orlen'):
+			return normalizeFuelInvoiceName_(fileName, date)
+		case fileName.includes('FIR'):
+			return normalizeInternetInvoiceName_()
+		default:
+			return fileName
+	}
+}
+
 // It doesn't apply if file name doesn't contain the `Orlen` name.
 // Converts:
 //   From: Faktura F 63K20/0509/22 Orlen Pay
 //   To: paliwo20220107.pdf
 function normalizeFuelInvoiceName_(fileName: string, date: GDate): string {
-	if (!fileName.includes('Orlen')) return fileName
-
 	const simpleDate = date.getFullYear() * 10000 +
 		(date.getMonth() + 1) * 100 + date.getDate();
 	return `paliwo${simpleDate}.pdf`
+}
+
+function normalizeInternetInvoiceName_(): string {
+	return "internet-swiatlowodowy.pdf"
 }
 
 function createFolder_(folderID: string, folderName: string): Folder {
